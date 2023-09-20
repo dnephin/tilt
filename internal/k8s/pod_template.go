@@ -23,7 +23,10 @@ func HashPodTemplateSpec(spec *v1.PodTemplateSpec) (PodTemplateSpecHash, error) 
 	if err != nil {
 		return "", errors.Wrap(err, "writing to hash")
 	}
-	return PodTemplateSpecHash(fmt.Sprintf("%x", h.Sum(nil)[:10])), nil
+	result := PodTemplateSpecHash(fmt.Sprintf("%x", h.Sum(nil)[:10]))
+
+	fmt.Println("pod-template-hash", result, string(data))
+	return result, nil
 }
 
 // Iterate through the fields of a k8s entity and add the pod template spec hash on all
