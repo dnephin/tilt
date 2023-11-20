@@ -63,7 +63,7 @@ func defaultTiltInfo() model.TiltBuild {
 		Date:      defaultBuildDate(),
 		Version:   devVersion,
 		CommitSHA: commitSHA,
-		Dev:       true,
+		//Dev:       true,
 	}
 }
 
