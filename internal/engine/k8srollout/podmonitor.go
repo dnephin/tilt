@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/jonboulle/clockwork"
 	v1 "k8s.io/api/core/v1"
 
@@ -176,10 +175,18 @@ func newPodStatus(pod v1alpha1.Pod, manifestName model.ManifestName) podStatus {
 	return s
 }
 
-var podStatusAllowUnexported = cmp.AllowUnexported(podStatus{})
-
 func podStatusesEqual(a, b podStatus) bool {
-	return cmp.Equal(a, b, podStatusAllowUnexported)
+	if a.podID != b.podID || a.manifestName != b.manifestName || !a.startTime.Equal(b.startTime) {
+		return false
+	}
+	return podConditionEqual(a.scheduled, b.scheduled) && podConditionEqual(a.initialized, b.initialized) && podConditionEqual(a.ready, b.ready)
+}
+
+func podConditionEqual(a, b v1alpha1.PodCondition) bool {
+	if a.Type != b.Type || a.Status != b.Status || a.Message != b.Message || a.Reason != b.Reason {
+		return false
+	}
+	return a.LastTransitionTime.Time.Equal(b.LastTransitionTime.Time)
 }
 
 func spanIDForPod(mn model.ManifestName, podID k8s.PodID) logstore.SpanID {
