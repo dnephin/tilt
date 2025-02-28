@@ -11,6 +11,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
 	"go.lsp.dev/protocol"
+	"golang.org/x/exp/trace"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	ctrllog "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -130,6 +131,11 @@ func preCommand(ctx context.Context, cmdName model.TiltSubcommand) context.Conte
 
 	initKlog(l.Writer(logger.InfoLvl))
 
+	fr := trace.NewFlightRecorder()
+	if err := fr.Start(); err != nil {
+		panic(err)
+	}
+
 	// SIGNAL TRAPPING
 	ctx, cancel := context.WithCancel(ctx)
 	sigs := make(chan os.Signal, 1)
@@ -137,7 +143,22 @@ func preCommand(ctx context.Context, cmdName model.TiltSubcommand) context.Conte
 	go func() {
 		<-sigs
 
+		fh, err := os.CreateTemp("", "tilt-trace")
+		if err != nil {
+			panic(err)
+		}
+		l.Warnf("Trace written to %v", fh.Name())
+		if _, err := fr.WriteTo(fh); err != nil {
+			l.Errorf("failed to write trace: %v", err)
+		}
+
 		cancel()
+		if err := fh.Close(); err != nil {
+			l.Errorf("failed to close trace file: %v", err)
+		}
+		if err := fr.Stop(); err != nil {
+			l.Warnf("failed to stop flight recorder: %v", err)
+		}
 
 		// If we get another signal, OR it takes too long for tilt to
 		// exit after canceling context, just exit
