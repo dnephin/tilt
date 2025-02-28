@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"syscall"
 	"time"
 
@@ -136,6 +137,15 @@ func preCommand(ctx context.Context, cmdName model.TiltSubcommand) context.Conte
 		panic(err)
 	}
 
+	pprofFH, err := os.CreateTemp("", "tilt-pprof")
+	if err != nil {
+		panic(err)
+	}
+	l.Warnf("pprof written to %v", pprofFH.Name())
+	if err := pprof.StartCPUProfile(pprofFH); err != nil {
+		panic(err)
+	}
+
 	// SIGNAL TRAPPING
 	ctx, cancel := context.WithCancel(ctx)
 	sigs := make(chan os.Signal, 1)
@@ -151,8 +161,13 @@ func preCommand(ctx context.Context, cmdName model.TiltSubcommand) context.Conte
 		if _, err := fr.WriteTo(fh); err != nil {
 			l.Errorf("failed to write trace: %v", err)
 		}
+		pprof.StopCPUProfile()
 
 		cancel()
+
+		if err := pprofFH.Close(); err != nil {
+			l.Errorf("failed to close trace file: %v", err)
+		}
 		if err := fh.Close(); err != nil {
 			l.Errorf("failed to close trace file: %v", err)
 		}
