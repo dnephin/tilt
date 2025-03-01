@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"runtime/trace"
 	"sync"
 	"time"
 
@@ -158,6 +159,8 @@ func (s *Store) Loop(ctx context.Context) error {
 			return ctx.Err()
 
 		case actions := <-s.actionCh:
+			region := trace.StartRegion(ctx, "StoreLoop")
+
 			s.stateMu.Lock()
 			hasStateLock = true
 
@@ -197,6 +200,8 @@ func (s *Store) Loop(ctx context.Context) error {
 
 			s.stateMu.Unlock()
 			hasStateLock = false
+
+			region.End()
 		}
 
 		// Subscribers
