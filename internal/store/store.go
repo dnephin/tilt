@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"maps"
-	"runtime/trace"
 	"slices"
 	"sync"
 	"time"
@@ -170,7 +169,7 @@ func (s *Store) Loop(ctx context.Context) error {
 			return ctx.Err()
 
 		case actions := <-s.actionCh:
-			region := trace.StartRegion(ctx, "StoreLoop")
+			//region := trace.StartRegion(ctx, "StoreLoop")
 
 			s.stateMu.Lock()
 			hasStateLock = true
@@ -218,11 +217,11 @@ func (s *Store) Loop(ctx context.Context) error {
 					if n > 9 {
 						n = 9
 					}
-					fmt.Println()
-					for i := 0; i < n; i++ {
-						name := order[i]
-						fmt.Printf("%v\t%v\t%v\n", name, s.actionCounts[name], s.actionTime[name])
-					}
+					//fmt.Println()
+					//for i := 0; i < n; i++ {
+					//	name := order[i]
+					//	fmt.Printf("%v\t%v\t%v\n", name, s.actionCounts[name], s.actionTime[name])
+					//}
 
 					s.actionCounts = map[string]int{}
 					s.actionTime = map[string]time.Duration{}
@@ -239,7 +238,7 @@ func (s *Store) Loop(ctx context.Context) error {
 			s.stateMu.Unlock()
 			hasStateLock = false
 
-			region.End()
+			//region.End()
 		}
 
 		// Subscribers

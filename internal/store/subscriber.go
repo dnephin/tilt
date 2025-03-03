@@ -3,7 +3,9 @@ package store
 import (
 	"context"
 	"fmt"
+	"maps"
 	"reflect"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -128,12 +130,13 @@ func (l *subscriberList) NotifyAll(ctx context.Context, store *Store, summary Ch
 
 	for _, s := range subscribers {
 		s := s
-		isPending := s.claimPending(summary)
-		if isPending {
+
+		if isPending := s.claimPending(summary); isPending {
 			SafeGo(store, func() {
 				s.notify(ctx, store)
 			})
 		}
+
 	}
 }
 
@@ -189,9 +192,15 @@ func subscriberName(sub Subscriber) string {
 	return fmt.Sprintf("%s.%s", strings.TrimPrefix(typ.PkgPath(), "github.com/tilt-dev/tilt/internal/"), typ.Name())
 }
 
+var cycleStart = time.Now()
+var actionCounts = map[string]int{}
+var actionTime = map[string]time.Duration{}
+
 func (e *subscriberEntry) notify(ctx context.Context, store *Store) {
 	e.activeMu.Lock()
 	defer e.activeMu.Unlock()
+
+	start := time.Now()
 
 	activeChange := e.movePendingToActive()
 	err := e.subscriber.OnChange(ctx, store, *activeChange)
@@ -209,7 +218,7 @@ func (e *subscriberEntry) notify(ctx context.Context, store *Store) {
 	backoff := activeChange.LastBackoff * 2
 	if backoff == 0 {
 		backoff = time.Second
-		logger.Get(ctx).Debugf("Problem processing change. Subscriber: %s. Backing off %v. Error: %v", subscriberName(e.subscriber), backoff, err)
+		logger.Get(ctx).Warnf("Problem processing change. Subscriber: %s. Backing off %v. Error: %v", subscriberName(e.subscriber), backoff, err)
 	} else if backoff > MaxBackoff {
 		backoff = MaxBackoff
 		logger.Get(ctx).Errorf("Problem processing change. Subscriber: %s. Backing off %v. Error: %v", subscriberName(e.subscriber), backoff, err)
@@ -224,6 +233,31 @@ func (e *subscriberEntry) notify(ctx context.Context, store *Store) {
 		SafeGo(store, func() {
 			e.notify(ctx, store)
 		})
+	}
+
+	name := fmt.Sprintf("%T", e.subscriber)
+	actionCounts[name] += 1
+	actionTime[name] += time.Since(start)
+
+	if time.Since(cycleStart) > 9*time.Second {
+		cycleStart = time.Now()
+		order := slices.Collect(maps.Keys(actionTime))
+		slices.SortFunc(order, func(a, b string) int {
+			return int(actionTime[b] - actionTime[a])
+		})
+
+		n := len(order)
+		if n > 9 {
+			n = 9
+		}
+		fmt.Println()
+		for i := 0; i < n; i++ {
+			name := order[i]
+			fmt.Printf("%v\t%v\t%v\n", name, actionCounts[name], actionTime[name])
+		}
+
+		actionCounts = map[string]int{}
+		actionTime = map[string]time.Duration{}
 	}
 }
 
