@@ -2,7 +2,10 @@ package store
 
 import (
 	"context"
+	"fmt"
+	"maps"
 	"runtime/trace"
+	"slices"
 	"sync"
 	"time"
 
@@ -41,6 +44,10 @@ type Store struct {
 
 	// TODO(nick): Define Subscribers and Reducers.
 	// The actionChan is an intermediate representation to make the transition easier.
+
+	cycleStart   time.Time
+	actionCounts map[string]int
+	actionTime   map[string]time.Duration
 }
 
 func NewStore(reducer Reducer, logActions LogActionsFlag) *Store {
@@ -52,6 +59,10 @@ func NewStore(reducer Reducer, logActions LogActionsFlag) *Store {
 		actionCh:    make(chan []Action),
 		subscribers: &subscriberList{},
 		logActions:  bool(logActions),
+
+		cycleStart:   time.Now(),
+		actionCounts: map[string]int{},
+		actionTime:   map[string]time.Duration{},
 	}
 }
 
@@ -167,6 +178,7 @@ func (s *Store) Loop(ctx context.Context) error {
 			logCheckpoint := s.state.LogStore.Checkpoint()
 
 			for _, action := range actions {
+				start := time.Now()
 				var oldState EngineState
 				if s.logActions {
 					oldState = s.cheapCopyState()
@@ -190,6 +202,32 @@ func (s *Store) Loop(ctx context.Context) error {
 						}
 					}()
 				}
+
+				name := fmt.Sprintf("%T", action)
+				s.actionCounts[name] += 1
+				s.actionTime[name] += time.Since(start)
+
+				if time.Since(s.cycleStart) > 9*time.Second {
+					s.cycleStart = time.Now()
+					order := slices.Collect(maps.Keys(s.actionTime))
+					slices.SortFunc(order, func(a, b string) int {
+						return int(s.actionTime[b] - s.actionTime[a])
+					})
+
+					n := len(order)
+					if n > 9 {
+						n = 9
+					}
+					fmt.Println()
+					for i := 0; i < n; i++ {
+						name := order[i]
+						fmt.Printf("%v\t%v\t%v\n", name, s.actionCounts[name], s.actionTime[name])
+					}
+
+					s.actionCounts = map[string]int{}
+					s.actionTime = map[string]time.Duration{}
+				}
+
 			}
 
 			// if one of the actions logged, but didn't report it via Summarizer,
