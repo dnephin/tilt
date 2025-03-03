@@ -121,12 +121,6 @@ func upperReducerFn(ctx context.Context, state *store.EngineState, action store.
 		return
 	}
 
-	//switch action := action.(type) {
-	//case store.LogAction, kubernetesdiscoverys.KubernetesDiscoveryUpsertAction, :
-	//default:
-	//	fmt.Printf("ACTION: %T\n", action)
-	//}
-
 	switch action := action.(type) {
 	case InitAction:
 		handleInitAction(ctx, state, action)
@@ -203,12 +197,6 @@ func upperReducerFn(ctx context.Context, state *store.EngineState, action store.
 	case kubernetesapplys.KubernetesApplyDeleteAction:
 		kubernetesapplys.HandleKubernetesApplyDeleteAction(state, action)
 	case kubernetesdiscoverys.KubernetesDiscoveryUpsertAction:
-		var waiting string
-		if w := action.KubernetesDiscovery.Status.Waiting; w != nil {
-			waiting = w.Reason
-		}
-		fmt.Printf("Discovery %v pods=%v waiting=%v\n",
-			action.KubernetesDiscovery.Name, len(action.KubernetesDiscovery.Status.Pods), waiting)
 		kubernetesdiscoverys.HandleKubernetesDiscoveryUpsertAction(state, action)
 	case kubernetesdiscoverys.KubernetesDiscoveryDeleteAction:
 		kubernetesdiscoverys.HandleKubernetesDiscoveryDeleteAction(state, action)
