@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"os"
 	"sync"
 	"time"
 
@@ -68,7 +69,17 @@ var EventGVR = v1.SchemeGroupVersion.WithResource("events")
 
 // Inspired by:
 // https://groups.google.com/g/kubernetes-sig-api-machinery/c/PbSCXdLDno0/m/v9gH3HXVDAAJ
-const resyncPeriod = 15 * time.Minute
+var resyncPeriod = 15 * time.Minute
+
+func init() {
+	if v := os.Getenv("TILT_RESYNC_PERIOD"); v != "" {
+		var err error
+		resyncPeriod, err = time.ParseDuration(v)
+		if err != nil {
+			panic(fmt.Sprintf("invalid TILT_RESYNC_PERIOD %v: %v", v, err))
+		}
+	}
+}
 
 // A wrapper object around SharedInformer objects, to make them
 // a bit easier to use correctly.
