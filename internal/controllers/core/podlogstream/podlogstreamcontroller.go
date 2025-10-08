@@ -148,7 +148,9 @@ func (c *Controller) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if apierrors.IsNotFound(err) {
 		// handleReconcileRequest returns errors that should be published
 		// to status.error. But the pod log stream is deleted! so can ignore.
-		_ = c.podSource.handleReconcileRequest(ctx, req.NamespacedName, stream)
+		if err := c.podSource.handleReconcileRequest(ctx, req.NamespacedName, stream); err != nil {
+			logger.Get(ctx).Warnf("pod logs not found %q: %v", req.NamespacedName, err)
+		}
 		c.deleteStreams(streamName)
 		return reconcile.Result{}, nil
 	} else if err != nil {
