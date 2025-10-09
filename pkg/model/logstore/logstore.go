@@ -2,7 +2,9 @@ package logstore
 
 import (
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +21,17 @@ import (
 // https://github.com/tilt-dev/tilt/issues/3359
 //
 // Until that issue is fixed, we cap the logs at about 2MB.
-const defaultMaxLogLengthInBytes = 2 * 1000 * 1000
+var defaultMaxLogLengthInBytes = 4 * 1000 * 1000
+
+func init() {
+	if v := os.Getenv("TILT_MAX_LOG_SIZE_BYTES"); v != "" {
+		var err error
+		defaultMaxLogLengthInBytes, err = strconv.Atoi(v)
+		if err != nil {
+			panic(fmt.Sprintf("invalid TILT_MAX_LOG_SIZE_BYTES %v: %v", v, err))
+		}
+	}
+}
 
 const newlineByte = byte('\n')
 
@@ -760,7 +772,7 @@ func (s *LogStore) computeLen() int {
 // a small change every time new data is written to the log
 // https://github.com/tilt-dev/tilt/issues/1935#issuecomment-531390353
 func (s *LogStore) logTruncationTarget() int {
-	return s.maxLogLengthInBytes / 2
+	return int(float64(s.maxLogLengthInBytes) * 0.8)
 }
 
 func (s *LogStore) ensureMaxLength() {
