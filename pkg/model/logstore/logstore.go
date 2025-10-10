@@ -782,13 +782,13 @@ func (s *LogStore) ensureMaxLength() {
 
 	manifestWeightMap := s.createManifestWeightMap()
 
-	// Next, repeatedly cut the longest manifest in half until
+	// Next, repeatedly cut the longest manifest until
 	// we've reached the target number of bytes to cut.
 	leftToCut := s.len - s.logTruncationTarget()
 	for leftToCut > 0 {
 		mn := manifestWeightMap.heaviest()
 		byteCount := manifestWeightMap[mn].byteCount
-		amountToCut := byteCount - (byteCount / 2) // ceiling(byteCount/2)
+		amountToCut := int(float64(byteCount) * 0.2)
 		if amountToCut > leftToCut {
 			amountToCut = leftToCut
 		}
