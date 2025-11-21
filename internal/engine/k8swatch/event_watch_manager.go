@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tilt-dev/tilt/pkg/logger"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/tilt-dev/tilt/internal/controllers/apis/cluster"
@@ -220,6 +221,7 @@ func (m *EventWatchManager) dispatchEventChange(ctx context.Context, of k8s.Owne
 	if err != nil {
 		// In locked-down clusters, the user may not have access to certain types of resources
 		// so it's normal for there to be errors. Ignore them.
+		logger.Get(ctx).Warnf("Ignoring error getting object owner for event %v: %v", event.Name, err)
 		return
 	}
 

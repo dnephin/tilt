@@ -46,9 +46,6 @@ type Upper struct {
 	store *store.Store
 }
 
-type ServiceWatcherMaker func(context.Context, *store.Store) error
-type PodWatcherMaker func(context.Context, *store.Store) error
-
 func NewUpper(ctx context.Context, st *store.Store, subs []store.Subscriber) (Upper, error) {
 	// There's not really a good reason to add all the subscribers
 	// in NewUpper(), but it's as good a place as any.

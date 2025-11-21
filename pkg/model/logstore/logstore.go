@@ -2,7 +2,9 @@ package logstore
 
 import (
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,7 +21,17 @@ import (
 // https://github.com/tilt-dev/tilt/issues/3359
 //
 // Until that issue is fixed, we cap the logs at about 2MB.
-const defaultMaxLogLengthInBytes = 2 * 1000 * 1000
+var defaultMaxLogLengthInBytes = 4 * 1000 * 1000
+
+func init() {
+	if v := os.Getenv("TILT_MAX_LOG_SIZE_BYTES"); v != "" {
+		var err error
+		defaultMaxLogLengthInBytes, err = strconv.Atoi(v)
+		if err != nil {
+			panic(fmt.Sprintf("invalid TILT_MAX_LOG_SIZE_BYTES %v: %v", v, err))
+		}
+	}
+}
 
 const newlineByte = byte('\n')
 
@@ -760,7 +772,7 @@ func (s *LogStore) computeLen() int {
 // a small change every time new data is written to the log
 // https://github.com/tilt-dev/tilt/issues/1935#issuecomment-531390353
 func (s *LogStore) logTruncationTarget() int {
-	return s.maxLogLengthInBytes / 2
+	return int(float64(s.maxLogLengthInBytes) * 0.8)
 }
 
 func (s *LogStore) ensureMaxLength() {
@@ -770,13 +782,13 @@ func (s *LogStore) ensureMaxLength() {
 
 	manifestWeightMap := s.createManifestWeightMap()
 
-	// Next, repeatedly cut the longest manifest in half until
+	// Next, repeatedly cut the longest manifest until
 	// we've reached the target number of bytes to cut.
 	leftToCut := s.len - s.logTruncationTarget()
 	for leftToCut > 0 {
 		mn := manifestWeightMap.heaviest()
 		byteCount := manifestWeightMap[mn].byteCount
-		amountToCut := byteCount - (byteCount / 2) // ceiling(byteCount/2)
+		amountToCut := int(float64(byteCount) * 0.2)
 		if amountToCut > leftToCut {
 			amountToCut = leftToCut
 		}

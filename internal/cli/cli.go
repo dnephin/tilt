@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -126,10 +127,8 @@ func preCommand(ctx context.Context, cmdName model.TiltSubcommand) context.Conte
 
 	ctx = tiltanalytics.WithAnalytics(ctx, a)
 
-	// Users don't care about controller-runtime logs.
-	ctrllog.SetLogger(logr.New(ctrllog.NullLogSink{}))
-
-	controllers.InitKlog(l.Writer(logger.InfoLvl))
+	ctrllog.SetLogger(logr.FromSlogHandler(slog.NewTextHandler(os.Stderr, nil)))
+	controllers.InitKlog(os.Stderr)
 
 	// SIGNAL TRAPPING
 	ctx, cancel := context.WithCancel(ctx)

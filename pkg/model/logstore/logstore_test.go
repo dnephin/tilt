@@ -59,7 +59,7 @@ func TestLog_AppendOverLimit(t *testing.T) {
 
 	s := sb.String()
 	l.Append(newGlobalTestLogEvent(s), nil)
-	assert.Equal(t, "x\nx\nx\nx\nx\nx\nx\nx\n", l.String())
+	assert.Equal(t, "x\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\nx\n", l.String())
 }
 
 func TestLog_TruncateChattySpansFirst(t *testing.T) {
